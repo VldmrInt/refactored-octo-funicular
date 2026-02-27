@@ -1,0 +1,9 @@
+bot_token: "YOUR_BOT_TOKEN"
+secret_key: "YOUR_JWT_SECRET_CHANGE_ME"
+
+roles:
+  admins:
+    - 123456789   # telegram_id
+  support:
+    - 987654321
+    - 111222333
