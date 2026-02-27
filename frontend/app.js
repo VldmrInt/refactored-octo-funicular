@@ -17,7 +17,10 @@ const state = {
 };
 
 // ── Config ─────────────────────────────────────────────────────
-const API_BASE = '';  // same origin
+// Set window.SUPPORT_BASE_PATH in index.html for subpath deployments.
+// Example: window.SUPPORT_BASE_PATH = '/support';
+// Nginx must strip that prefix before proxying to FastAPI.
+const API_BASE = (window.SUPPORT_BASE_PATH || '').replace(/\/$/, '');
 
 const STATUS_LABELS = {
   new:         'Новое',
@@ -449,7 +452,7 @@ function renderTicketDetail(t) {
   if (t.files && t.files.length) {
     filesSec.style.display = '';
     filesEl.innerHTML = t.files.map(f => `
-      <a class="file-chip" href="/files/${encodeURIComponent(f.stored_path)}"
+      <a class="file-chip" href="${API_BASE}/files/${encodeURIComponent(f.stored_path)}"
          target="_blank" rel="noopener">
         📎 ${escHtml(f.filename)}
       </a>`).join('');
@@ -523,7 +526,7 @@ function renderMessages(messages) {
       (isSupport ? '<div class="msg-sender">Поддержка</div>' : '<div class="msg-sender">Автор</div>');
 
     const filesHtml = (msg.files || []).map(f =>
-      `<a class="file-chip" style="margin-top:4px" href="/files/${encodeURIComponent(f.stored_path)}"
+      `<a class="file-chip" style="margin-top:4px" href="${API_BASE}/files/${encodeURIComponent(f.stored_path)}"
           target="_blank" rel="noopener">📎 ${escHtml(f.filename)}</a>`
     ).join('');
 
