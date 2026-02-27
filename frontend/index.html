@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Служба поддержки</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: Loading
+  ════════════════════════════════════════════ -->
+  <div id="screen-loading" class="screen active">
+    <div class="loader" style="height:100vh">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: Ticket List
+  ════════════════════════════════════════════ -->
+  <div id="screen-list" class="screen">
+    <div class="header">
+      <h1>🎫 Обращения</h1>
+      <button class="btn-icon" id="btn-new-ticket" title="Новое обращение">＋</button>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="mine">Мои</button>
+      <button class="tab-btn" data-tab="all" id="tab-all" style="display:none">Все</button>
+      <button class="tab-btn" data-tab="closed">Закрытые</button>
+    </div>
+    <div id="ticket-list-content" class="ticket-list">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: Create / Edit Ticket
+  ════════════════════════════════════════════ -->
+  <div id="screen-form" class="screen">
+    <div class="header">
+      <button class="btn-icon" id="btn-form-back">←</button>
+      <h1 id="form-title">Новое обращение</h1>
+    </div>
+    <div class="form-wrap">
+      <div class="form-group">
+        <label class="form-label">Заголовок *</label>
+        <input class="form-input" id="f-title" type="text" placeholder="Кратко опишите проблему" maxlength="200" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Описание проблемы *</label>
+        <textarea class="form-textarea" id="f-desc" rows="4" placeholder="Подробное описание…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Шаги для воспроизведения</label>
+        <textarea class="form-textarea" id="f-steps" rows="3" placeholder="1. Открыть страницу&#10;2. Нажать кнопку…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ссылка на страницу</label>
+        <input class="form-input" id="f-url" type="url" placeholder="https://…" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Файлы</label>
+        <div class="file-upload-area" id="file-upload-area">
+          📎 Нажмите для выбора файлов
+          <input type="file" id="file-input" multiple style="display:none" />
+        </div>
+        <div class="file-list" id="file-list"></div>
+      </div>
+      <label class="checkbox-row">
+        <input type="checkbox" id="f-urgent" />
+        <span>🔴 Срочно</span>
+      </label>
+      <button class="btn-primary" id="btn-submit-ticket">Отправить</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: Ticket Detail
+  ════════════════════════════════════════════ -->
+  <div id="screen-detail" class="screen">
+    <div class="detail-header">
+      <button class="btn-back" id="btn-detail-back">←</button>
+      <div style="flex:1;min-width:0">
+        <div id="d-number-urgent" style="display:flex;align-items:center;gap:8px">
+          <span class="detail-number" id="d-number"></span>
+          <span class="badge-urgent" id="d-urgent-badge" style="display:none">🔴 СРОЧНО</span>
+        </div>
+        <div class="detail-title" id="d-title"></div>
+      </div>
+    </div>
+
+    <div class="detail-body" id="detail-body">
+      <!-- Status row -->
+      <div class="info-section" id="d-status-section">
+        <div class="info-label">Статус</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <span id="d-status-badge" class="badge-status"></span>
+          <!-- Support/admin status dropdown -->
+          <select class="status-select" id="d-status-select" style="display:none"></select>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="actions-row" id="d-actions"></div>
+
+      <!-- Description -->
+      <div class="info-section" id="d-desc-section" style="display:none">
+        <div class="info-label">Описание</div>
+        <div class="info-value" id="d-desc"></div>
+      </div>
+
+      <!-- Steps -->
+      <div class="info-section" id="d-steps-section" style="display:none">
+        <div class="info-label">Шаги для воспроизведения</div>
+        <div class="info-value" id="d-steps"></div>
+      </div>
+
+      <!-- URL -->
+      <div class="info-section" id="d-url-section" style="display:none">
+        <div class="info-label">Ссылка</div>
+        <a class="info-link" id="d-url" target="_blank" rel="noopener"></a>
+      </div>
+
+      <!-- Files -->
+      <div class="info-section" id="d-files-section" style="display:none">
+        <div class="info-label">Вложения</div>
+        <div class="attached-files" id="d-files"></div>
+      </div>
+
+      <!-- Meta -->
+      <div class="info-section">
+        <div class="info-label">Автор</div>
+        <div class="info-value" id="d-author"></div>
+      </div>
+    </div>
+
+    <!-- Chat section — rendered below detail-body via flex on screen -->
+    <div class="chat-section" id="chat-section" style="flex:0 0 auto;max-height:55vh;display:flex;flex-direction:column">
+      <div class="chat-label">── Чат ──</div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div id="chat-file-preview" class="chat-file-preview" style="display:none"></div>
+      <div class="chat-input-wrap" id="chat-input-wrap">
+        <button class="chat-attach-btn" id="chat-attach-btn" title="Прикрепить файл">📎</button>
+        <input type="file" id="chat-file-input" style="display:none" />
+        <textarea
+          class="chat-input" id="chat-input"
+          rows="1" placeholder="Написать…"
+        ></textarea>
+        <button class="chat-send-btn" id="chat-send-btn">➤</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
