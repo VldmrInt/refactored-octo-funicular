@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # setup_config.sh — интерактивная настройка config.yaml
 # Использование: bash setup_config.sh [--non-interactive]
 
@@ -22,10 +22,12 @@ ask() {
         return
     fi
     if [[ -n "$default" ]]; then
-        read -rp "$prompt [$default]: " var
+        echo -n "$prompt [$default]: "
+        read -r var
         echo "${var:-$default}"
     else
-        read -rp "$prompt: " var
+        echo -n "$prompt: "
+        read -r var
         echo "$var"
     fi
 }
@@ -50,7 +52,8 @@ echo "  ────────────────────────
 if [[ -f "$CONFIG" ]]; then
     warn "Файл $CONFIG уже существует."
     if ! $NON_INTERACTIVE; then
-        read -rp "  Перезаписать? [y/N]: " yn
+        echo -n "  Перезаписать? [y/N]: "
+        read -r yn
         [[ "${yn,,}" == "y" ]] || { echo "Отменено."; exit 0; }
     fi
 fi
@@ -60,7 +63,20 @@ echo ""
 BOT_TOKEN=$(ask "Telegram Bot Token" "${BOT_TOKEN:-}")
 [[ -n "$BOT_TOKEN" ]] || die "Bot token не может быть пустым."
 
-SECRET_KEY="${SECRET_KEY:-$(python3 -c 'import secrets; print(secrets.token_hex(24))')}"
+# Генерация SECRET_KEY с запасными вариантами
+SECRET_KEY="${SECRET_KEY:-}"
+if [[ -z "$SECRET_KEY" ]] && command -v python3 >/dev/null 2>&1; then
+    SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(24))' 2>/dev/null || true)
+fi
+if [[ -z "$SECRET_KEY" ]] && command -v python >/dev/null 2>&1; then
+    SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(24))' 2>/dev/null || true)
+fi
+if [[ -z "$SECRET_KEY" ]] && command -v openssl >/dev/null 2>&1; then
+    SECRET_KEY=$(timeout 2 openssl rand -hex 24 2>/dev/null || true)
+fi
+if [[ -z "$SECRET_KEY" ]]; then
+    SECRET_KEY=$(head -c 48 /dev/urandom | xxd -p | tr -d '\n' 2>/dev/null || echo "fallback_secret_key_change_me_please")
+fi
 
 echo ""
 ADMIN_IDS_RAW=$(ask_list "Telegram ID администраторов")
