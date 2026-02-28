@@ -92,6 +92,7 @@ async def send_message(
     db.commit()
     db.refresh(msg)
 
+    _ = ticket.author  # pre-load relationship while session is open
     import asyncio
     from app.bot import notify_new_message
     asyncio.create_task(notify_new_message(ticket, msg, current_user))
