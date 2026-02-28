@@ -4,16 +4,20 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import StaticPool
 
 from app.auth import create_jwt
 from app.database import Base, get_db
+import app.models  # noqa: F401 — registers all ORM models with Base.metadata
 from app.models import User
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-
+# StaticPool forces SQLAlchemy to reuse a single connection.
+# Without it, each connection to sqlite:///:memory: gets its own empty database,
+# so tables created by create_all() are invisible to the session's connection.
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
+    "sqlite:///:memory:",
     connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
