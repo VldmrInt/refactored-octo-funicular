@@ -94,6 +94,7 @@ class TestMessages:
     def test_send_message_with_file(self, client, db):
         user = make_user(db, telegram_id=1)
         ticket = _create_ticket(client, user)
+
         r = client.post(
             f"/tickets/{ticket['id']}/messages",
             data={"text": "Сообщение с файлом"},
@@ -112,3 +113,108 @@ class TestMessages:
         ticket = _create_ticket(client, user)
         r = client.get(f"/tickets/{ticket['id']}/messages")
         assert r.status_code == 403
+
+    def test_send_message_with_forbidden_extension(self, client, db):
+        user = make_user(db, telegram_id=1)
+        ticket = _create_ticket(client, user)
+
+        r = client.post(
+            f"/tickets/{ticket['id']}/messages",
+            data={"text": "Попытка"},
+            files={"file": ("malicious.exe", BytesIO(b"content"), "application/octet-stream")},
+            headers=auth_headers(user),
+        )
+        assert r.status_code == 400
+        assert "not allowed" in r.json()["detail"]
+
+    def test_send_message_with_too_large_file(self, client, db):
+        user = make_user(db, telegram_id=1)
+        ticket = _create_ticket(client, user)
+
+        large_content = b"x" * (11 * 1024 * 1024)  # 11 MB
+        r = client.post(
+            f"/tickets/{ticket['id']}/messages",
+            data={"text": "Большой файл"},
+            files={"file": ("large.txt", BytesIO(large_content), "text/plain")},
+            headers=auth_headers(user),
+        )
+        assert r.status_code == 400
+        assert "too large" in r.json()["detail"]
+
+    def test_list_messages_includes_files(self, client, db):
+        user = make_user(db, telegram_id=1)
+        ticket = _create_ticket(client, user)
+
+        client.post(
+            f"/tickets/{ticket['id']}/messages",
+            data={"text": "С файлом"},
+            files={"file": ("doc.pdf", BytesIO(b"PDF content"), "application/pdf")},
+            headers=auth_headers(user),
+        )
+
+        msgs = client.get(f"/tickets/{ticket['id']}/messages", headers=auth_headers(user)).json()
+        assert len(msgs) == 1
+        assert len(msgs[0]["files"]) == 1
+        assert msgs[0]["files"][0]["filename"] == "doc.pdf"
+
+    def test_multiple_files_in_multiple_messages(self, client, db):
+        user = make_user(db, telegram_id=1)
+        ticket = _create_ticket(client, user)
+        hdrs = auth_headers(user)
+
+        client.post(
+            f"/tickets/{ticket['id']}/messages",
+            data={"text": "Первое"},
+            files={"file": ("file1.txt", BytesIO(b"1"), "text/plain")},
+            headers=hdrs,
+        )
+
+        client.post(
+            f"/tickets/{ticket['id']}/messages",
+            data={"text": "Второе"},
+            files={"file": ("file2.txt", BytesIO(b"2"), "text/plain")},
+            headers=hdrs,
+        )
+
+        msgs = client.get(f"/tickets/{ticket['id']}/messages", headers=hdrs).json()
+        assert len(msgs) == 2
+        assert msgs[0]["files"][0]["filename"] == "file1.txt"
+        assert msgs[1]["files"][0]["filename"] == "file2.txt"
+
+    def test_message_without_file(self, client, db):
+        user = make_user(db, telegram_id=1)
+        ticket = _create_ticket(client, user)
+
+        r = client.post(
+            f"/tickets/{ticket['id']}/messages",
+            data={"text": "Просто текст"},
+            headers=auth_headers(user),
+        )
+        assert r.status_code == 201
+        assert len(r.json()["files"]) == 0
+
+    def test_admin_can_reply(self, client, db):
+        author = make_user(db, telegram_id=1)
+        admin = make_user(db, telegram_id=2, role="admin")
+        ticket = _create_ticket(client, author)
+
+        r = client.post(
+            f"/tickets/{ticket['id']}/messages",
+            data={"text": "Ответ админа"},
+            headers=auth_headers(admin),
+        )
+        assert r.status_code == 201
+        assert r.json()["sender_role"] == "admin"
+
+    def test_admin_can_see_all_messages(self, client, db):
+        author = make_user(db, telegram_id=1)
+        admin = make_user(db, telegram_id=2, role="admin")
+        ticket = _create_ticket(client, author)
+        client.post(
+            f"/tickets/{ticket['id']}/messages",
+            data={"text": "Secret"},
+            headers=auth_headers(author),
+        )
+        r = client.get(f"/tickets/{ticket['id']}/messages", headers=auth_headers(admin))
+        assert r.status_code == 200
+        assert len(r.json()) == 1
