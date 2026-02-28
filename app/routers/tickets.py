@@ -124,7 +124,7 @@ STATUS_LABELS = {
 
 @router.get("", response_model=list[TicketOut])
 def list_tickets(
-    filter: str = Query("mine", regex="^(all|mine|closed)$"),
+    filter: str = Query("mine", pattern="^(all|mine|closed)$"),
     urgent: bool | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
