@@ -5,6 +5,12 @@ _CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
 
 
 def load_config() -> dict:
+    if not _CONFIG_PATH.exists():
+        raise FileNotFoundError(
+            f"Config file not found: {_CONFIG_PATH}\n"
+            "Run: cp config.example.yaml config.yaml  and fill in your values,\n"
+            "or run setup_config.sh to generate it interactively."
+        )
     with open(_CONFIG_PATH, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
