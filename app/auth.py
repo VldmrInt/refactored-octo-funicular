@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import json
 from datetime import datetime, timedelta, timezone
-from urllib.parse import unquote
+from urllib.parse import parse_qsl
 
 from jose import JWTError, jwt
 
@@ -14,22 +14,17 @@ def _validate_telegram_init_data(init_data: str, bot_token: str) -> dict:
     Validate Telegram WebApp initData via HMAC-SHA256.
     Returns parsed user dict if valid, raises ValueError otherwise.
     """
-    # Parse raw pairs without URL-decoding values (required for correct HMAC)
-    raw_params: dict[str, str] = {}
-    for part in init_data.split("&"):
-        if "=" in part:
-            k, _, v = part.partition("=")
-            raw_params[k] = v
+    params = dict(parse_qsl(init_data, keep_blank_values=True))
 
-    received_hash = raw_params.pop("hash", None)
+    received_hash = params.pop("hash", None)
     if not received_hash:
         raise ValueError("Missing hash in initData")
 
-    if "user" not in raw_params:
+    if "user" not in params:
         raise ValueError("Missing user field in initData")
 
     data_check_string = "\n".join(
-        f"{k}={v}" for k, v in sorted(raw_params.items())
+        f"{k}={v}" for k, v in sorted(params.items())
     )
 
     secret = hmac.new(
@@ -47,7 +42,7 @@ def _validate_telegram_init_data(init_data: str, bot_token: str) -> dict:
     if not hmac.compare_digest(expected_hash, received_hash):
         raise ValueError("Invalid initData signature")
 
-    return json.loads(unquote(raw_params["user"]))
+    return json.loads(params["user"])
 
 
 def determine_role(telegram_id: int) -> str:
