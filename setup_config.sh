@@ -60,8 +60,7 @@ echo ""
 BOT_TOKEN=$(ask "Telegram Bot Token" "${BOT_TOKEN:-}")
 [[ -n "$BOT_TOKEN" ]] || die "Bot token не может быть пустым."
 
-SECRET_KEY=$(ask "JWT Secret Key" "${SECRET_KEY:-$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c 48 || true)}")
-[[ -n "$SECRET_KEY" ]] || die "Secret key не может быть пустым."
+SECRET_KEY="${SECRET_KEY:-$(set +o pipefail; LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 48)}"
 
 echo ""
 ADMIN_IDS_RAW=$(ask_list "Telegram ID администраторов")
