@@ -145,6 +145,8 @@ class TestNotifyStatusChanged:
                 ticket.number = "#001"
                 ticket.status = "in_progress"
                 ticket.author_id = 10
+                ticket.author = MagicMock()
+                ticket.author.telegram_id = 123
 
                 initiator = MagicMock()
 
@@ -153,6 +155,27 @@ class TestNotifyStatusChanged:
                 call_text = mock_send.call_args[0][1]
                 assert "#001" in call_text
                 assert "изменён" in call_text
+
+    @pytest.mark.asyncio
+    async def test_notify_status_biz_review_sends_special_message(self):
+        with patch("app.bot._send") as mock_send:
+            with patch("app.bot._open_button", return_value=None):
+                ticket = MagicMock()
+                ticket.id = 1
+                ticket.number = "#001"
+                ticket.status = "biz_review"
+                ticket.author_id = 10
+                ticket.author = MagicMock()
+                ticket.author.telegram_id = 123
+
+                initiator = MagicMock()
+
+                await bot.notify_status_changed(ticket, "in_progress", initiator)
+
+                call_text = mock_send.call_args[0][1]
+                assert "#001" in call_text
+                assert "ждёт вашего ответа" in call_text
+                assert "Проверка бизнесом" in call_text
 
 
 class TestNotifyAssigned:
@@ -216,6 +239,26 @@ class TestNotifyNewMessage:
                 call_text = mock_send.call_args[0][1]
                 assert "#001" in call_text
                 assert "solution" in call_text
+
+    @pytest.mark.asyncio
+    async def test_notify_admin_reply_to_author(self):
+        with patch("app.bot._send") as mock_send:
+            with patch("app.bot._open_button", return_value=None):
+                ticket = MagicMock()
+                ticket.id = 1
+                ticket.number = "#001"
+
+                message = MagicMock()
+                message.text = "Admin response"
+
+                sender = MagicMock()
+                sender.role = "admin"
+
+                await bot.notify_new_message(ticket, message, sender)
+
+                call_text = mock_send.call_args[0][1]
+                assert "#001" in call_text
+                assert "Admin response" in call_text
 
     @pytest.mark.asyncio
     async def test_notify_author_message_to_support(self):

@@ -78,6 +78,18 @@ class TestUploadFile:
         )
         assert r.status_code == 201
 
+    def test_admin_can_upload(self, client, db):
+        author = make_user(db, telegram_id=1)
+        admin = make_user(db, telegram_id=2, role="admin")
+        ticket = client.post("/tickets", json=TICKET_PAYLOAD, headers=auth_headers(author)).json()
+
+        r = client.post(
+            f"/tickets/{ticket['id']}/files",
+            files={"file": ("test.txt", BytesIO(b"content"), "text/plain")},
+            headers=auth_headers(admin),
+        )
+        assert r.status_code == 201
+
 
 class TestDownloadFile:
     def test_download_file(self, client, db, tmp_path):
@@ -135,4 +147,19 @@ class TestDownloadFile:
         stored_path = upload_r.json()["stored_path"]
 
         r = client.get(f"/files/{stored_path}", headers=auth_headers(support))
+        assert r.status_code == 200
+
+    def test_admin_can_download(self, client, db):
+        author = make_user(db, telegram_id=1)
+        admin = make_user(db, telegram_id=2, role="admin")
+        ticket = client.post("/tickets", json=TICKET_PAYLOAD, headers=auth_headers(author)).json()
+
+        upload_r = client.post(
+            f"/tickets/{ticket['id']}/files",
+            files={"file": ("test.txt", BytesIO(b"content"), "text/plain")},
+            headers=auth_headers(author),
+        )
+        stored_path = upload_r.json()["stored_path"]
+
+        r = client.get(f"/files/{stored_path}", headers=auth_headers(admin))
         assert r.status_code == 200
