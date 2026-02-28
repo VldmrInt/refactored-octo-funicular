@@ -1,3 +1,5 @@
+from io import BytesIO
+
 from tests.conftest import auth_headers, make_user, TICKET_PAYLOAD
 
 
@@ -88,6 +90,22 @@ class TestMessages:
         msgs = client.get(f"/tickets/{ticket['id']}/messages", headers=hdrs).json()
         texts = [m["text"] for m in msgs]
         assert texts == ["Первое", "Второе", "Третье"]
+
+    def test_send_message_with_file(self, client, db):
+        user = make_user(db, telegram_id=1)
+        ticket = _create_ticket(client, user)
+        r = client.post(
+            f"/tickets/{ticket['id']}/messages",
+            data={"text": "Сообщение с файлом"},
+            files={"file": ("document.txt", BytesIO(b"Content of file"), "text/plain")},
+            headers=auth_headers(user),
+        )
+        assert r.status_code == 201
+        msg = r.json()
+        assert msg["text"] == "Сообщение с файлом"
+        assert len(msg["files"]) == 1
+        assert msg["files"][0]["filename"] == "document.txt"
+        assert msg["files"][0]["filesize"] == 15  # len(b"Content of file") == 15
 
     def test_no_token_returns_403(self, client, db):
         user = make_user(db, telegram_id=1)
