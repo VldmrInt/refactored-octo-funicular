@@ -7,6 +7,10 @@ from __future__ import annotations
 
 import logging
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+from app.config import ADMIN_IDS, SUPPORT_IDS
+
 logger = logging.getLogger(__name__)
 
 _STATUS_LABELS = {
@@ -26,7 +30,6 @@ def _get_bot():
 
 
 def _support_recipients() -> list[int]:
-    from app.config import ADMIN_IDS, SUPPORT_IDS
     return list(set(ADMIN_IDS + SUPPORT_IDS))
 
 
@@ -45,9 +48,6 @@ async def _send(chat_id: int, text: str, reply_markup=None) -> None:
 
 def _open_button(ticket_number: str, ticket_id: int):
     try:
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-        from app.config import BOT_TOKEN
-        # Extract bot username is not trivial without an API call; use startapp deeplink
         url = f"https://t.me/bot?startapp=ticket_{ticket_id}"
         return InlineKeyboardMarkup(
             [[InlineKeyboardButton("Открыть", url=url)]]
@@ -77,24 +77,17 @@ async def notify_status_changed(ticket, old_status: str, initiator) -> None:
     )
     markup = _open_button(ticket.number, ticket.id)
 
-    # Notify author
-    from app.database import SessionLocal
-    from app.models import User
-    db = SessionLocal()
-    try:
-        author = db.get(User, ticket.author_id)
-        if author:
-            if ticket.status == "biz_review":
-                text_author = (
-                    f"⏳ Обращение <b>{ticket.number}</b> ждёт вашего ответа.\n"
-                    f"Статус: <b>Проверка бизнесом</b>\n"
-                    f"Пожалуйста, проверьте и закройте или ответьте в чате."
-                )
-                await _send(author.telegram_id, text_author, markup)
-            else:
-                await _send(author.telegram_id, text, markup)
-    finally:
-        db.close()
+    author_telegram_id = ticket.author.telegram_id
+    if author_telegram_id:
+        if ticket.status == "biz_review":
+            text_author = (
+                f"⏳ Обращение <b>{ticket.number}</b> ждёт вашего ответа.\n"
+                f"Статус: <b>Проверка бизнесом</b>\n"
+                f"Пожалуйста, проверьте и закройте или ответьте в чате."
+            )
+            await _send(author_telegram_id, text_author, markup)
+        else:
+            await _send(author_telegram_id, text, markup)
 
 
 async def notify_assigned(ticket, assignee) -> None:
@@ -103,15 +96,9 @@ async def notify_assigned(ticket, assignee) -> None:
         f"Специалист: {assignee.full_name}"
     )
     markup = _open_button(ticket.number, ticket.id)
-    from app.database import SessionLocal
-    from app.models import User
-    db = SessionLocal()
-    try:
-        author = db.get(User, ticket.author_id)
-        if author:
-            await _send(author.telegram_id, text, markup)
-    finally:
-        db.close()
+    author_telegram_id = ticket.author.telegram_id
+    if author_telegram_id:
+        await _send(author_telegram_id, text, markup)
 
 
 async def notify_urgent(ticket, initiator) -> None:
@@ -127,27 +114,19 @@ async def notify_urgent(ticket, initiator) -> None:
 async def notify_new_message(ticket, message, sender) -> None:
     markup = _open_button(ticket.number, ticket.id)
 
-    from app.database import SessionLocal
-    from app.models import User
-    db = SessionLocal()
-    try:
-        author = db.get(User, ticket.author_id)
-        if sender.role in ("support", "admin"):
-            # Notify author
-            if author:
-                text = (
-                    f"💬 Новое сообщение в обращении <b>{ticket.number}</b>\n"
-                    f"Поддержка: {message.text[:100]}"
-                )
-                await _send(author.telegram_id, text, markup)
-        else:
-            # Author wrote — notify all support/admin
-            sender_label = f"@{sender.username}" if sender.username else sender.full_name
+    if sender.role in ("support", "admin"):
+        author_telegram_id = ticket.author.telegram_id
+        if author_telegram_id:
             text = (
-                f"💬 Новое сообщение от автора в обращении <b>{ticket.number}</b>\n"
-                f"{sender_label}: {message.text[:100]}"
+                f"💬 Новое сообщение в обращении <b>{ticket.number}</b>\n"
+                f"Поддержка: {message.text[:100]}"
             )
-            for uid in _support_recipients():
-                await _send(uid, text, markup)
-    finally:
-        db.close()
+            await _send(author_telegram_id, text, markup)
+    else:
+        sender_label = f"@{sender.username}" if sender.username else sender.full_name
+        text = (
+            f"💬 Новое сообщение от автора в обращении <b>{ticket.number}</b>\n"
+            f"{sender_label}: {message.text[:100]}"
+        )
+        for uid in _support_recipients():
+            await _send(uid, text, markup)

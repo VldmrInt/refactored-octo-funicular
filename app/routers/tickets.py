@@ -265,6 +265,7 @@ def change_status(
     db.commit()
     db.refresh(ticket)
 
+    _ = ticket.author  # pre-load relationship while session is open
     import asyncio
     from app.bot import notify_status_changed
     asyncio.create_task(notify_status_changed(ticket, old_status, current_user))
@@ -296,6 +297,7 @@ def assign_ticket(
     db.commit()
     db.refresh(ticket)
 
+    _ = ticket.author  # pre-load relationship while session is open
     import asyncio
     from app.bot import notify_assigned
     asyncio.create_task(notify_assigned(ticket, current_user))
