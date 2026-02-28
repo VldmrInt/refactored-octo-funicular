@@ -9,7 +9,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/support-webapp}"
 VENV_DIR="$APP_DIR/.venv"
 SERVICE="${SERVICE:-support-webapp}"
-BRANCH="${BRANCH:-master}"
+BRANCH="${BRANCH:-main}"
 REPO_URL="${REPO_URL:-}"   # оставьте пустым, если уже склонировано
 
 # ── Цвета ──────────────────────────────────────────────────────
