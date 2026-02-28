@@ -65,19 +65,16 @@ BOT_TOKEN=$(ask "Telegram Bot Token" "${BOT_TOKEN:-}")
 
 # Генерация SECRET_KEY с запасными вариантами
 SECRET_KEY="${SECRET_KEY:-}"
-if [[ -z "$SECRET_KEY" ]]; then
-    if command -v openssl >/dev/null 2>&1; then
-        SECRET_KEY=$(openssl rand -hex 24 2>/dev/null || true)
-    fi
-fi
 if [[ -z "$SECRET_KEY" ]] && command -v python3 >/dev/null 2>&1; then
-        SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(24))' 2>/dev/null || true)
+    SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(24))' 2>/dev/null || true)
 fi
 if [[ -z "$SECRET_KEY" ]] && command -v python >/dev/null 2>&1; then
-        SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(24))' 2>/dev/null || true)
+    SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(24))' 2>/dev/null || true)
+fi
+if [[ -z "$SECRET_KEY" ]] && command -v openssl >/dev/null 2>&1; then
+    SECRET_KEY=$(timeout 2 openssl rand -hex 24 2>/dev/null || true)
 fi
 if [[ -z "$SECRET_KEY" ]]; then
-    # Запасной вариант: случайная строка из /dev/urandom
     SECRET_KEY=$(head -c 48 /dev/urandom | xxd -p | tr -d '\n' 2>/dev/null || echo "fallback_secret_key_change_me_please")
 fi
 
