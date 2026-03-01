@@ -63,20 +63,6 @@ echo ""
 BOT_TOKEN=$(ask "Telegram Bot Token" "${BOT_TOKEN:-}")
 [[ -n "$BOT_TOKEN" ]] || die "Bot token не может быть пустым."
 
-# Генерация SECRET_KEY с запасными вариантами
-SECRET_KEY="${SECRET_KEY:-}"
-if [[ -z "$SECRET_KEY" ]] && command -v python3 >/dev/null 2>&1; then
-    SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(24))' 2>/dev/null || true)
-fi
-if [[ -z "$SECRET_KEY" ]] && command -v python >/dev/null 2>&1; then
-    SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(24))' 2>/dev/null || true)
-fi
-if [[ -z "$SECRET_KEY" ]] && command -v openssl >/dev/null 2>&1; then
-    SECRET_KEY=$(timeout 2 openssl rand -hex 24 2>/dev/null || true)
-fi
-if [[ -z "$SECRET_KEY" ]]; then
-    SECRET_KEY=$(head -c 48 /dev/urandom | xxd -p | tr -d '\n' 2>/dev/null || echo "fallback_secret_key_change_me_please")
-fi
 
 echo ""
 ADMIN_IDS_RAW=$(ask_list "Telegram ID администраторов")
@@ -99,7 +85,7 @@ SUPPORT_YAML=$(build_yaml_list "$SUPPORT_IDS_RAW")
 # ── Запись файла ───────────────────────────────────────────────────────────
 cat > "$CONFIG" <<EOF
 bot_token: "$BOT_TOKEN"
-secret_key: "$SECRET_KEY"
+secret_key: ""
 
 roles:
   admins:
@@ -111,7 +97,7 @@ EOF
 ok "Конфиг записан: $CONFIG"
 echo ""
 echo "  bot_token:  ${BOT_TOKEN:0:8}…"
-echo "  secret_key: ${SECRET_KEY:0:8}…"
+echo "  secret_key: (будет сгенерирован автоматически при первом запуске)"
 [[ -n "$ADMIN_IDS_RAW"   ]] && echo "  admins:     $ADMIN_IDS_RAW"   || warn "Список admins пуст."
 [[ -n "$SUPPORT_IDS_RAW" ]] && echo "  support:    $SUPPORT_IDS_RAW" || warn "Список support пуст."
 echo ""

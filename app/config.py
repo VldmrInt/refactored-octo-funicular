@@ -1,3 +1,5 @@
+import secrets
+
 import yaml
 from pathlib import Path
 
@@ -15,10 +17,21 @@ def load_config() -> dict:
         return yaml.safe_load(f)
 
 
+def _ensure_secret_key(config: dict) -> str:
+    key = config.get("secret_key") or ""
+    if key:
+        return key
+    key = secrets.token_hex(24)
+    config["secret_key"] = key
+    with open(_CONFIG_PATH, "w", encoding="utf-8") as f:
+        yaml.dump(config, f, allow_unicode=True, default_flow_style=False)
+    return key
+
+
 _config = load_config()
 
 BOT_TOKEN: str = _config["bot_token"]
-SECRET_KEY: str = _config["secret_key"]
+SECRET_KEY: str = _ensure_secret_key(_config)
 ADMIN_IDS: list[int] = _config["roles"].get("admins", [])
 SUPPORT_IDS: list[int] = _config["roles"].get("support", [])
 
