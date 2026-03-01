@@ -64,9 +64,9 @@ def get_messages(
 )
 async def send_message(
     ticket_id: int,
+    background_tasks: BackgroundTasks,
     text: str = Form(...),
     file: UploadFile | None = File(None),
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
