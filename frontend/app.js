@@ -452,7 +452,7 @@ function renderTicketDetail(t) {
   if (t.files && t.files.length) {
     filesSec.style.display = '';
     filesEl.innerHTML = t.files.map(f => `
-      <a class="file-chip" href="${API_BASE}/files/${encodeURIComponent(f.stored_path)}"
+      <a class="file-chip" href="${API_BASE}/public/files/${encodeURIComponent(f.stored_path)}"
          target="_blank" rel="noopener">
         📎 ${escHtml(f.filename)}
       </a>`).join('');
@@ -526,7 +526,7 @@ function renderMessages(messages) {
       (isSupport ? '<div class="msg-sender">Поддержка</div>' : '<div class="msg-sender">Автор</div>');
 
     const filesHtml = (msg.files || []).map(f =>
-      `<a class="file-chip" style="margin-top:4px" href="${API_BASE}/files/${encodeURIComponent(f.stored_path)}"
+      `<a class="file-chip" style="margin-top:4px" href="${API_BASE}/public/files/${encodeURIComponent(f.stored_path)}"
           target="_blank" rel="noopener">📎 ${escHtml(f.filename)}</a>`
     ).join('');
 

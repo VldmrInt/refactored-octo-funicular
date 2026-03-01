@@ -69,6 +69,20 @@ async def upload_file(
     return tf
 
 
+@router.get("/public/files/{file_path:path}")
+def download_public_file(file_path: str):
+    """Download a file publicly without authentication."""
+    # Validate path doesn't escape uploads dir
+    full_path = (UPLOAD_DIR / file_path).resolve()
+    if not str(full_path).startswith(str(UPLOAD_DIR.resolve())):
+        raise HTTPException(status_code=403, detail="Invalid path")
+
+    if not full_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(str(full_path), filename=full_path.name)
+
+
 @router.get("/files/{file_path:path}")
 def download_file(
     file_path: str,

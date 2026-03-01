@@ -46,16 +46,6 @@ async def _send(chat_id: int, text: str, reply_markup=None) -> None:
         logger.warning("Bot send failed to %s: %s", chat_id, exc)
 
 
-def _open_button(ticket_number: str, ticket_id: int):
-    try:
-        url = f"https://t.me/bot?startapp=ticket_{ticket_id}"
-        return InlineKeyboardMarkup(
-            [[InlineKeyboardButton("Открыть", url=url)]]
-        )
-    except Exception:
-        return None
-
-
 async def notify_new_ticket(ticket, author) -> None:
     prefix = "🔴 СРОЧНО! " if ticket.is_urgent else ""
     text = (
@@ -63,9 +53,8 @@ async def notify_new_ticket(ticket, author) -> None:
         f"<b>{ticket.title}</b>\n"
         f"Автор: @{author.username or author.full_name}"
     )
-    markup = _open_button(ticket.number, ticket.id)
     for uid in _support_recipients():
-        await _send(uid, text, markup)
+        await _send(uid, text)
 
 
 async def notify_status_changed(ticket, old_status: str, initiator) -> None:
@@ -75,7 +64,6 @@ async def notify_status_changed(ticket, old_status: str, initiator) -> None:
         f"🔄 Статус обращения <b>{ticket.number}</b> изменён\n"
         f"{label_old} → <b>{label_new}</b>"
     )
-    markup = _open_button(ticket.number, ticket.id)
 
     author_telegram_id = ticket.author.telegram_id
     if author_telegram_id:
@@ -85,9 +73,9 @@ async def notify_status_changed(ticket, old_status: str, initiator) -> None:
                 f"Статус: <b>Проверка бизнесом</b>\n"
                 f"Пожалуйста, проверьте и закройте или ответьте в чате."
             )
-            await _send(author_telegram_id, text_author, markup)
+            await _send(author_telegram_id, text_author)
         else:
-            await _send(author_telegram_id, text, markup)
+            await _send(author_telegram_id, text)
 
 
 async def notify_assigned(ticket, assignee) -> None:
@@ -95,10 +83,9 @@ async def notify_assigned(ticket, assignee) -> None:
         f"👤 Обращение <b>{ticket.number}</b> взято в работу\n"
         f"Специалист: {assignee.full_name}"
     )
-    markup = _open_button(ticket.number, ticket.id)
     author_telegram_id = ticket.author.telegram_id
     if author_telegram_id:
-        await _send(author_telegram_id, text, markup)
+        await _send(author_telegram_id, text)
 
 
 async def notify_urgent(ticket, initiator) -> None:
@@ -106,14 +93,11 @@ async def notify_urgent(ticket, initiator) -> None:
         f"🔴 СРОЧНО! Обращение <b>{ticket.number}</b> отмечено как срочное\n"
         f"<b>{ticket.title}</b>"
     )
-    markup = _open_button(ticket.number, ticket.id)
     for uid in _support_recipients():
-        await _send(uid, text, markup)
+        await _send(uid, text)
 
 
 async def notify_new_message(ticket, message, sender) -> None:
-    markup = _open_button(ticket.number, ticket.id)
-
     if sender.role in ("support", "admin"):
         author_telegram_id = ticket.author.telegram_id
         if author_telegram_id:
@@ -121,7 +105,7 @@ async def notify_new_message(ticket, message, sender) -> None:
                 f"💬 Новое сообщение в обращении <b>{ticket.number}</b>\n"
                 f"Поддержка: {message.text[:100]}"
             )
-            await _send(author_telegram_id, text, markup)
+            await _send(author_telegram_id, text)
     else:
         sender_label = f"@{sender.username}" if sender.username else sender.full_name
         text = (
@@ -129,4 +113,4 @@ async def notify_new_message(ticket, message, sender) -> None:
             f"{sender_label}: {message.text[:100]}"
         )
         for uid in _support_recipients():
-            await _send(uid, text, markup)
+            await _send(uid, text)
