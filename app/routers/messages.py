@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Message, MessageFile, Ticket, User
 from app.routers.tickets import _check_read_access, _touch_ticket
+from app.bot import notify_new_message
 
 router = APIRouter(tags=["messages"])
 
@@ -65,6 +66,7 @@ async def send_message(
     ticket_id: int,
     text: str = Form(...),
     file: UploadFile | None = File(None),
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -93,9 +95,7 @@ async def send_message(
     db.refresh(msg)
 
     _ = ticket.author  # pre-load relationship while session is open
-    import asyncio
-    from app.bot import notify_new_message
-    asyncio.create_task(notify_new_message(ticket, msg, current_user))
+    background_tasks.add_task(notify_new_message, ticket, msg, current_user)
 
     return msg
 

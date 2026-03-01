@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import extract, func
 from sqlalchemy.orm import Session
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Message, Ticket, TicketFile, User
+from app.bot import notify_new_ticket, notify_status_changed, notify_assigned, notify_urgent
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
@@ -151,6 +152,7 @@ def list_tickets(
 @router.post("", response_model=TicketOut, status_code=status.HTTP_201_CREATED)
 def create_ticket(
     payload: TicketCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -170,9 +172,7 @@ def create_ticket(
     db.refresh(ticket)
 
     # Notify support/admins asynchronously (fire-and-forget)
-    import asyncio
-    from app.bot import notify_new_ticket
-    asyncio.create_task(notify_new_ticket(ticket, current_user))
+    background_tasks.add_task(notify_new_ticket, ticket, current_user)
 
     return ticket
 
@@ -217,6 +217,7 @@ def edit_ticket(
 def change_status(
     ticket_id: int,
     payload: StatusUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -266,9 +267,7 @@ def change_status(
     db.refresh(ticket)
 
     _ = ticket.author  # pre-load relationship while session is open
-    import asyncio
-    from app.bot import notify_status_changed
-    asyncio.create_task(notify_status_changed(ticket, old_status, current_user))
+    background_tasks.add_task(notify_status_changed, ticket, old_status, current_user)
 
     return ticket
 
@@ -276,6 +275,7 @@ def change_status(
 @router.put("/{ticket_id}/assign", response_model=TicketOut)
 def assign_ticket(
     ticket_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -298,9 +298,7 @@ def assign_ticket(
     db.refresh(ticket)
 
     _ = ticket.author  # pre-load relationship while session is open
-    import asyncio
-    from app.bot import notify_assigned
-    asyncio.create_task(notify_assigned(ticket, current_user))
+    background_tasks.add_task(notify_assigned, ticket, current_user)
 
     return ticket
 
@@ -309,6 +307,7 @@ def assign_ticket(
 def toggle_urgent(
     ticket_id: int,
     payload: UrgentUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -332,9 +331,7 @@ def toggle_urgent(
     db.refresh(ticket)
 
     if payload.is_urgent:
-        import asyncio
-        from app.bot import notify_urgent
-        asyncio.create_task(notify_urgent(ticket, current_user))
+        background_tasks.add_task(notify_urgent, ticket, current_user)
 
     return ticket
 
